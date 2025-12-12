@@ -4,6 +4,8 @@ from PIL import Image
 from qwen_vid2vid.pipeline import QwenVid2VidPipeline
 from diffusers.utils import load_image, export_to_video
 
+from transformers import BitsAndBytesConfig
+
 # Configuration
 MODEL_ID = "Qwen/Qwen-Image-Edit"
 PROMPT = "A van gogh style painting of a car driving on the road"
@@ -23,13 +25,21 @@ def load_frames(path):
 
 def main():
     # 1. Load Pipeline
-    # Note: Qwen-Image is large (20B). Requires significant VRAM (A100/H100 recommended).
-    # Enable bfloat16 to save memory.
+    # Note: Qwen-Image is large (20B). Requires significant VRAM (A100/H100 recommended) in fp16.
+    # We use 4-bit quantization to fit inconsumer cards (like 24GB/40GB VRAM).
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16
+    )
+
     pipe = QwenVid2VidPipeline.from_pretrained(
         MODEL_ID, 
-        torch_dtype=torch.bfloat16
+        quantization_config=quantization_config,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
     )
-    pipe.to("cuda")
+    # pipe.to("cuda") # Removed: device_map="auto" handles this with quantization
     
     # Optional: Enable CPU Offload if VRAM is tight
     # pipe.enable_model_cpu_offload() 
