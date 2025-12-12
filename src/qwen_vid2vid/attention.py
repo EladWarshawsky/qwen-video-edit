@@ -17,9 +17,25 @@ class QwenVid2VidAttnProcessor:
         
         # Configuration for "sliding window" vs "anchor only"
         # Vid2Vid-zero usually attends to First Frame + Previous Frame
+        # User Feedback: "frames are pretty much the same" -> Anchor is freezing motion.
+        # Fix: Disable anchor attention by default, rely on previous frame (sliding window).
+        self.use_anchor = False 
         self.use_previous_frame = True 
 
-    def __call__(
+    def __call__( # ... (this line is not replaced, just context)
+        # ...
+    # (Checking logical bounds - target is valid)
+
+    # I will replace the block from __init__ to the anchor insertion logic to be safe/clean
+    # The tool requires precise targeting.
+    # Lines 11-20 are __init__
+    # Lines 91-94 are the usage.
+    
+    # I'll do two chunks or one large replacement if they are close?
+    # They are far apart (line 11 and line 91).
+    # I should use multi_replace or sequential replace. 
+    # I'll use multi_replace.
+    pass # Dummy, I will construct the arguments properly below.
         self,
         attn,
         hidden_states: torch.FloatTensor,  # Image stream
@@ -88,8 +104,8 @@ class QwenVid2VidAttnProcessor:
             kv_list_k = [img_key]
             kv_list_v = [img_value]
 
-            # Add Anchor
-            if self.anchor_img_key is not None:
+            # Add Anchor (Conditional)
+            if self.use_anchor and self.anchor_img_key is not None:
                 kv_list_k.insert(0, self.anchor_img_key)
                 kv_list_v.insert(0, self.anchor_img_value)
             
