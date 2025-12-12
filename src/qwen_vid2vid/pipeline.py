@@ -65,7 +65,22 @@ class QwenVid2VidPipeline(QwenImageEditPipeline):
 
         # 1. Initialize Pipeline
         self.enable_vid2vid()
-        generator = torch.Generator(device=self.device).manual_seed(seed)
+        
+        # Handle device for generator - 'meta' device (offloading) cannot be used for generator
+        device = self.device
+        if str(device) == 'meta' or str(device) == 'accelerator':
+            # Fallback to cuda if available, else cpu
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Even if 'cpu', offloaded models might prefer 'cuda' for generator if running on gpu eventually
+        # But for 'balanced', components move. 
+        # Safest is usually 'cpu' for generator seeds to be reproducible across devices, 
+        # OR 'cuda' for speed/standard.
+        # Given the error, we force a real device.
+        if device.type == 'meta': 
+             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        generator = torch.Generator(device=device).manual_seed(seed)
         
         output_frames = []
 
@@ -99,11 +114,13 @@ class QwenVid2VidPipeline(QwenImageEditPipeline):
         self.set_temporal_mode("attend_temporal")
         
         for i in range(1, len(video)):
-            print(f"Processing Frame {i}/{len(video)-1}...")
+            print(f"Processing Frame {i}/{len(video)}...")
             
             # Reset generator for temporal consistency (optional, but standard in vid2vid)
             # vid2vid-zero uses the SAME seed for noise for all frames to aid consistency
-            generator = torch.Generator(device=self.device).manual_seed(seed)
+            
+            # Re-use the safe device determined above
+            generator = torch.Generator(device=device).manual_seed(seed)
             
             frame_out = super().__call__(
                 image=video[i],
