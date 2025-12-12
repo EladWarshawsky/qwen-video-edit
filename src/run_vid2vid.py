@@ -6,22 +6,51 @@ from diffusers.utils import load_image, export_to_video
 
 from transformers import BitsAndBytesConfig
 
+import imageio
+import numpy as np
+
 # Configuration
 MODEL_ID = "Qwen/Qwen-Image-Edit"
 PROMPT = "A van gogh style painting of a car driving on the road"
-INPUT_VIDEO_PATH = "path/to/your/input_video" # Or a folder of images
+INPUT_VIDEO_PATH = "without_first_frame.mp4" # User's file
 OUTPUT_DIR = "./output_vid2vid"
 FRAMES_TO_PROCESS = 8  # Keep low for testing VRAM usage
 
+def read_video_frames(video_path, max_frames=30):
+    """
+    Reads frames from an mp4 video file using imageio.
+    """
+    frames = []
+    try:
+        reader = imageio.get_reader(video_path)
+        for i, im in enumerate(reader):
+            if i >= max_frames:
+                break
+            # Imageio returns numpy arrays, convert to PIL
+            frames.append(Image.fromarray(im))
+        reader.close()
+    except Exception as e:
+        raise ValueError(f"Could not open video file with imageio: {video_path}. Error: {e}")
+        
+    return frames
+
 def load_frames(path):
-    # Mock loader - expects path to a folder of images or single image for testing
-    if os.path.isdir(path):
+    # Check if path is a video file
+    if os.path.isfile(path) and path.endswith(('.mp4', '.avi', '.mov')):
+        return read_video_frames(path, max_frames=FRAMES_TO_PROCESS)
+    
+    # Expects path to a folder of images
+    elif os.path.isdir(path):
         files = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith(('.png', '.jpg'))])
         return [Image.open(f).convert("RGB") for f in files]
     else:
-        # Fallback for testing: duplicate one image to simulate video
-        img = load_image(path).convert("RGB")
-        return [img] * FRAMES_TO_PROCESS
+        # Fallback for testing: try to load as single image
+        try:
+             img = load_image(path).convert("RGB")
+             return [img] * FRAMES_TO_PROCESS
+        except Exception:
+             # Just return a dummy list if nothing found, to fail gracefully later or here
+             raise ValueError(f"Path is not a folder, video file, or valid image: {path}")
 
 from transformers import BitsAndBytesConfig, AutoModelForCausalLM
 
@@ -93,11 +122,11 @@ def main():
         )
     except Exception as e:
         print(f"Failed to load quantized model directly: {e}")
-        print("Falling back to original model with device_map='auto'...")
+        print("Falling back to original model with device_map='balanced'...")
         pipe = QwenVid2VidPipeline.from_pretrained(
             MODEL_ID, 
             torch_dtype=torch.bfloat16,
-            device_map="auto"
+            device_map="balanced" 
         )
 
     # pipe.to("cuda") # Handled by device_map
