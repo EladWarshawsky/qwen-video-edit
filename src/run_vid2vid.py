@@ -137,11 +137,16 @@ def main():
         pipe = QwenVid2VidPipeline.from_pretrained(
             MODEL_ID_QUANTIZED, 
             torch_dtype=torch.bfloat16,
-            device_map="auto"
+            device_map="balanced"
         )
     except Exception as e:
         print(f"Failed to load quantized model directly: {e}")
         print("Falling back to original model with device_map='balanced'...")
+        
+        # Clear memory before trying fallback
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
         pipe = QwenVid2VidPipeline.from_pretrained(
             MODEL_ID, 
             torch_dtype=torch.bfloat16,
