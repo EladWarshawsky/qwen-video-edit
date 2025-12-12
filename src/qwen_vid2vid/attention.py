@@ -22,20 +22,7 @@ class QwenVid2VidAttnProcessor:
         self.use_anchor = False 
         self.use_previous_frame = True 
 
-    def __call__( # ... (this line is not replaced, just context)
-        # ...
-    # (Checking logical bounds - target is valid)
-
-    # I will replace the block from __init__ to the anchor insertion logic to be safe/clean
-    # The tool requires precise targeting.
-    # Lines 11-20 are __init__
-    # Lines 91-94 are the usage.
-    
-    # I'll do two chunks or one large replacement if they are close?
-    # They are far apart (line 11 and line 91).
-    # I should use multi_replace or sequential replace. 
-    # I'll use multi_replace.
-    pass # Dummy, I will construct the arguments properly below.
+    def __call__(
         self,
         attn,
         hidden_states: torch.FloatTensor,  # Image stream
