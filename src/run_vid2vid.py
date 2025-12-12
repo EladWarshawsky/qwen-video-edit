@@ -11,7 +11,7 @@ import numpy as np
 
 # Configuration
 MODEL_ID = "Qwen/Qwen-Image-Edit"
-PROMPT = "A van gogh style painting of a car driving on the road"
+PROMPT = "hyperrealistic real world scene kids in the desert with a lemur"
 INPUT_VIDEO_PATH = "without_first_frame.mp4" # User's file
 OUTPUT_DIR = "./output_vid2vid"
 FRAMES_TO_PROCESS = 8  # Keep low for testing VRAM usage
@@ -137,7 +137,7 @@ def main():
         pipe = QwenVid2VidPipeline.from_pretrained(
             MODEL_ID_QUANTIZED, 
             torch_dtype=torch.bfloat16,
-            device_map="balanced"
+            device_map="cuda"
         )
     except Exception as e:
         print(f"Failed to load quantized model directly: {e}")
@@ -150,14 +150,26 @@ def main():
         pipe = QwenVid2VidPipeline.from_pretrained(
             MODEL_ID, 
             torch_dtype=torch.bfloat16,
-            device_map="balanced" 
+            device_map="cuda" 
         )
 
     # pipe.to("cuda") # Handled by device_map
     
     # Optional: Enable CPU Offload if VRAM is tight
     # pipe.enable_model_cpu_offload() 
+    
+    # Load Lightning LoRA weights for acceleration
+    try:
+        pipe.load_lora_weights(
+            "lightx2v/Qwen-Image-Lightning", 
+            weight_name="Qwen-Image-Lightning-8steps-V2.0.safetensors"
+        )
+        pipe.fuse_lora()
+        print("Successfully loaded Lightning LoRA weights")
 
+    except:
+        pass
+        
     # 2. Prepare Data
     frames = load_frames(INPUT_VIDEO_PATH)[:FRAMES_TO_PROCESS]
     
@@ -167,7 +179,7 @@ def main():
     output_frames = pipe(
         video=frames,
         prompt=PROMPT,
-        num_inference_steps=30,
+        num_inference_steps=8,
         strength=0.6,
         guidance_scale=4.0,
         seed=1234
