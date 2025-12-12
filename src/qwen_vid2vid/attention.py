@@ -9,12 +9,18 @@ try:
 except ImportError:
     SAGE_ATTENTION_AVAILABLE = False
 
+try:
+    import flash_attn
+    FLASH_ATTN_AVAILABLE = True
+except ImportError:
+    FLASH_ATTN_AVAILABLE = False
+
 
 class QwenVid2VidAttnProcessor:
     """
     Wraps the default QwenDoubleStreamAttnProcessor2_0 to enable Vid2Vid-Zero 
     temporal consistency by attending to an anchor frame.
-    Supports SageAttention acceleration implicitly if installed.
+    Supports FlashAttention and SageAttention acceleration implicitly if installed.
     """
     def __init__(self):
         self.mode = "standard"
@@ -116,7 +122,17 @@ class QwenVid2VidAttnProcessor:
         joint_value = torch.cat([txt_value, img_value], dim=1)
 
         # 7. Compute joint attention
-        if SAGE_ATTENTION_AVAILABLE:
+        if FLASH_ATTN_AVAILABLE:
+             # FlashAttention (NHD layout supported)
+             joint_hidden_states = flash_attn.flash_attn_func(
+                 joint_query,
+                 joint_key,
+                 joint_value,
+                 dropout_p=0.0,
+                 causal=False
+             )
+        
+        elif SAGE_ATTENTION_AVAILABLE:
             # SageAttention Optimization
             # Layout is NHD: (Batch, Seq, Heads, Dim) because of unflatten(-1) earlier without transpose
             joint_hidden_states = sageattn(
